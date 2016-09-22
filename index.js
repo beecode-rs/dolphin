@@ -247,6 +247,9 @@ function buildUrl(url, path, query, isSocket) {
 }
 
 function filtersToJSON(filters){
+  if(typeof filters === 'string'){
+    filters = JSON.parse(filters);
+  }
   var keys = Object.keys(filters);
   keys.forEach(function(key){
     filters[key] = [filters[key].toString()];
