@@ -10,10 +10,11 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('lodash');
 
-var images = require('./images');
-var networks = require('./networks');
-var volumes = require('./volumes');
-var services = require('./services');
+var images = require('./lib/images');
+var nodes = require('./lib/nodes')
+var networks = require('./lib/networks');
+var volumes = require('./lib/volumes');
+var services = require('./lib/services');
 
 var RESTART_WAIT = 5000;
 
@@ -25,6 +26,7 @@ var Dolphin = function (opts) {
   var env = this.env = process.env;
   if (typeof opts === 'string') {
     env = getMachineEnv(opts);
+    this.env = _.extend(this.env, env);
     opts = {};
   }
 
@@ -83,6 +85,7 @@ var Dolphin = function (opts) {
   // Attach methods
   //
   this.images = images(this);
+  this.nodes = nodes(this);
   this.volumes = volumes(this);
   this.networks = networks(this);
   this.services = services(this);
@@ -160,17 +163,25 @@ Dolphin.prototype.events = function (query) {
 }
 
 Dolphin.prototype.docker = function(args){
-  // TODO: Implement asynchronously.
   var _this = this;
   var child = require('child_process');
   return new Promise(function(resolve, reject){
-    var result = child.spawnSync('docker', args, _this.env);
-    if(result.status === 0){
-      resolve(result.stdout.toString());
-    }else{
-      reject(Error(result.stderr));
-    }
-  })
+    var docker = child.spawn('docker', args, {env: _this.env});
+    var result = '';
+    var err = '';
+
+    docker.stdout.on('data', function(data){
+      result += data;
+    });
+
+    docker.stderr.on('data', function(data){
+      err += data;
+    });
+
+    docker.on('close', function(code){
+      return code === 0 ? resolve(result.toString()) : reject(err);
+    });
+  });
 }
 
 Dolphin.prototype._list = function(bucket, idOrFilters, opts){
