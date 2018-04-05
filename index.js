@@ -184,6 +184,80 @@ Dolphin.prototype.docker = function(args){
   });
 }
 
+/**
+ * @param {string | Buffer | string[]} str
+ * @private
+ */
+function trimTerminator(str) {
+  if (Array.isArray(str)) {
+    return trimTerminator(str.join(''));
+  }
+
+  if (typeof str !== 'string') {
+    str = str.toString();
+  }
+
+  return str.replace(/[\r\n]+$/, '');
+}
+
+/**
+* Executes a docker command by spawning a new docker instance. This is more flexible than the docker() function.
+*
+* @param { string[] } args Args that will be used when calling the docker command.
+* @param { (data: string, err: string) => void } [cb] Optional callback function. Will be called on every buffer of data received.
+*
+* @returns { Promise<{ stdout: string; stderr: string; }> } A Promise containaing the code, signal, stdout, and stderr.
+*/
+Dolphin.prototype.cmd = function cmd(args, cb) {
+  if (cb && typeof cb !== 'function') {
+    throw new Error('cb needs to be a function');
+  }
+
+  return new Promise((resolve, reject) => {
+    const child = require('child_process');
+    const childProcess = child.spawn('docker', args, { env: this.env });
+
+    /** @type {string[]} */
+    const stdout = [];
+
+    /** @type {string[]} */
+    const stderr = [];
+
+    const dataProcessor = err => {
+      return data => {
+        (err ? stderr : stdout).push(data);
+
+        if (cb) {
+          data = trimTerminator(data);
+          return err ? cb(null, data) : cb(data);
+        }
+      };
+    };
+
+    childProcess.stdout.on('data', dataProcessor(false));
+    childProcess.stderr.on('data', dataProcessor(true));
+
+    childProcess.on('close', (code, signal) => {
+      const _stdout = trimTerminator(stdout);
+      const _stderr = trimTerminator(stderr);
+
+      if (code === 0) {
+        return resolve({
+          stdout: _stdout,
+          stderr: _stderr
+        });
+      }
+
+      const err = new Error('An error has occured while executing the docker command.');
+      err.code = code;
+      err.signal = signal;
+      err.stdout = _stdout;
+      err.stderr = _stderr;
+      return reject(err);
+    });
+  });
+};
+
 Dolphin.prototype._list = function(bucket, idOrFilters, opts){
   var query;
   if(idOrFilters){

@@ -1,6 +1,6 @@
 {
   "name": "dolphin",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "A fast and lightweight module to interact with docker deamons",
   "main": "index.js",
   "scripts": {
@@ -20,8 +20,8 @@
   },
   "homepage": "https://github.com/OptimalBits/dolphin",
   "dependencies": {
-    "bluebird": "^2.9.24",
-    "lodash": "^4.15.0",
-    "request": "^2.65.0"
+    "bluebird": "3.5.1",
+    "lodash": "4.15.0",
+    "request": "2.65.0"
   }
 }
